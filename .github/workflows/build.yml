@@ -140,15 +140,16 @@ jobs:
           # Download directly from the official GitHub release — guarantees
           # ISPP (preprocessor) is included, which the .iss file requires
           # for #define / #ifndef / {#AppVersion} directives.
-          $release = "https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe"
+          $release = "https://files.jrsoftware.org/is/6/innosetup-6.7.1.exe"
           $installer = "$env:TEMP\innosetup.exe"
 
           Write-Host "Downloading Inno Setup 6.4.3..."
           Invoke-WebRequest -Uri $release -OutFile $installer -UseBasicParsing -TimeoutSec 120
 
-          Write-Host "Installing Inno Setup (with ISPP)..."
-          # /COMPONENTS=* installs everything including the preprocessor (ISPP)
-          Start-Process $installer -ArgumentList "/SILENT /SUPPRESSMSGBOXES /SP- /COMPONENTS=*" -Wait
+          Write-Host "Installing Inno Setup 6.7.1 (with ISPP)..."
+          # Note: Inno Setup's own installer uses /TYPE=full to include ISPP
+          # /TYPE=full ensures ISPP preprocessor is included
+          Start-Process $installer -ArgumentList "/SILENT /SUPPRESSMSGBOXES /SP- /TYPE=full" -Wait
 
           # Persist install path for subsequent steps
           echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
@@ -157,6 +158,14 @@ jobs:
           $iscc = Get-Command iscc -ErrorAction SilentlyContinue
           if (-not $iscc) {
             Write-Error "Inno Setup (iscc.exe) not found after installation"
+            exit 1
+          }
+          # Verify ISPP.dll is present — required for #define/#ifndef in .iss files
+          $isppDll = "C:\Program Files (x86)\Inno Setup 6\ISPP.dll"
+          if (Test-Path $isppDll) {
+            Write-Host "✓ ISPP.dll present — preprocessor available"
+          } else {
+            Write-Error "ISPP.dll missing — preprocessor not installed. Build will fail on #define directives."
             exit 1
           }
           Write-Host "✓ Inno Setup ready: $($iscc.Source)"
