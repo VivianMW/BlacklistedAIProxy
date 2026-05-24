@@ -137,29 +137,20 @@ jobs:
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          $installer = "$env:TEMP\innosetup.exe"
-          Invoke-WebRequest `
-            -Uri "https://files.jrsoftware.org/is/6/innosetup-6.3.3.exe" `
-            -OutFile $installer `
-            -UseBasicParsing `
-            -TimeoutSec 120
+          # Chocolatey is pre-installed on all GitHub Actions Windows runners
+          choco install innosetup --yes --no-progress | Out-Null
 
-          Start-Process $installer -ArgumentList "/SILENT /SUPPRESSMSGBOXES /SP-" -Wait
+          # Persist the default install path for subsequent steps
+          echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
 
-          # Verify via PATH (robust — no hardcoded install folder)
+          # Verify
+          $env:PATH += ";C:\Program Files (x86)\Inno Setup 6"
           $iscc = Get-Command iscc -ErrorAction SilentlyContinue
           if (-not $iscc) {
-            # Fallback: add default location to PATH for this step
-            $env:PATH += ";C:\Program Files (x86)\Inno Setup 6"
-            $iscc = Get-Command iscc -ErrorAction SilentlyContinue
-          }
-          if (-not $iscc) {
-            Write-Error "Inno Setup (iscc.exe) not found after installation"
+            Write-Error "Inno Setup (iscc.exe) not found after choco install"
             exit 1
           }
           Write-Host "✓ Inno Setup ready: $($iscc.Source)"
-          # Persist PATH addition for subsequent steps
-          echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
 
       # ──────────────────────────────────────────────
       # 10. Compile installer with Inno Setup
