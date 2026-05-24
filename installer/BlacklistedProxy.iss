@@ -52,7 +52,7 @@ VersionInfoDescription={#AppName} Installer
 VersionInfoCopyright=Copyright (C) 2026 Blacklisted Binary Labs
 
 ; Legal agreement — displayed on the License wizard page
-installer\legal\FullLegalTerms.rtf
+LicenseFile=legal\FullLegalTerms.rtf
 
 ; Default to Program Files\BlacklistedAIProxy
 DefaultDirName={autopf}\{#AppName}
