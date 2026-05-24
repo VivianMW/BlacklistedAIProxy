@@ -186,7 +186,32 @@ jobs:
         }
 
     # ─────────────────────────────────────────────
-    # 10. COMPILE INSTALLER
+    # 10. GENERATE PORTABLE APP ZIP
+    # ─────────────────────────────────────────────
+    - name: Generate Portable App Zip
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force build | Out-Null
+        
+        # Build array of existing paths to zip to prevent errors if a file/folder is missing
+        $pathsToZip = @()
+        $possiblePaths = @("src", "configs", "static", "node_modules", "package.json", "package-lock.json", "VERSION", "LICENSE", "README.md", "docs", "tls-sidecar\tls-sidecar.exe")
+        
+        foreach ($path in $possiblePaths) {
+            if (Test-Path $path) {
+                $pathsToZip += $path
+            }
+        }
+        
+        if ($pathsToZip.Count -gt 0) {
+            Compress-Archive -Path $pathsToZip -DestinationPath "build\BlacklistedAIProxy-portable.zip" -Force
+            Write-Host "Portable zip generated successfully at build\BlacklistedAIProxy-portable.zip"
+        } else {
+            throw "No source files found to compress into the portable zip."
+        }
+
+    # ─────────────────────────────────────────────
+    # 11. COMPILE INSTALLER
     # ─────────────────────────────────────────────
     - name: Build installer
       shell: pwsh
@@ -212,7 +237,7 @@ jobs:
         "INSTALLER=$installer" | Out-File -FilePath $env:GITHUB_ENV -Append
 
     # ─────────────────────────────────────────────
-    # 11. SMOKE TEST
+    # 12. SMOKE TEST
     # ─────────────────────────────────────────────
     - name: Smoke test
       shell: pwsh
@@ -230,7 +255,7 @@ jobs:
         Write-Host "Smoke test passed"
 
     # ─────────────────────────────────────────────
-    # 12. UPLOAD ARTIFACT
+    # 13. UPLOAD ARTIFACT
     # ─────────────────────────────────────────────
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -240,7 +265,7 @@ jobs:
         retention-days: 30
 
     # ─────────────────────────────────────────────
-    # 13. RELEASE (TAG PUSHES ONLY)
+    # 14. RELEASE (TAG PUSHES ONLY)
     # ─────────────────────────────────────────────
     - name: Release
       if: startsWith(github.ref, 'refs/tags/v')
