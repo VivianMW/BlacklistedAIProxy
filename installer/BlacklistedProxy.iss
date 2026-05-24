@@ -64,8 +64,8 @@ DisableWelcomePage=no
 ; Output settings
 OutputDir=Output
 OutputBaseFilename=BlacklistedAIProxy-Setup-{#AppVersion}-win-x64
-SetupIconFile=assets\SetupIcon.ico
-UninstallDisplayIcon={app}\assets\SetupIcon.ico
+setupiconFile=assets\setupicon.ico
+UninstallDisplayIcon={app}\assets\setupicon.ico
 ; WizardImageFile=assets\WizardImage.bmp
 ; WizardSmallImageFile=assets\WizardSmallImage.bmp
 WizardStyle=modern
@@ -151,7 +151,7 @@ Source: "portable\launcher.ps1";       DestDir: "{app}";            Components: 
 Source: "portable\launcher.bat";       DestDir: "{app}";            DestName: "Launch BlacklistedAIProxy.bat"; Components: app; Check: IsPortableInstall
 
 ; ── Assets ───────────────────────────────────────────────────────────────────
-Source: "assets\SetupIcon.ico";        DestDir: "{app}\assets";     Flags: ignoreversion; Components: app
+Source: "assets\setupicon.ico";        DestDir: "{app}\assets";     Flags: ignoreversion; Components: app
 
 ; ── TLS sidecar (pre-compiled) ───────────────────────────────────────────────
 Source: "..\tls-sidecar\tls-sidecar.exe"; DestDir: "{app}\tls-sidecar"; Flags: ignoreversion skipifsourcedoesntexist; Components: app
@@ -161,15 +161,15 @@ Source: "..\tls-sidecar\tls-sidecar.exe"; DestDir: "{app}\tls-sidecar"; Flags: i
 ; ==============================================================================
 [Icons]
 ; Full install
-Name: "{group}\{#AppName} — Open Web UI";    Filename: "{app}\runtime\node.exe"; Parameters: """{app}\src\core\master.js"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\SetupIcon.ico"; Comment: "Launch the BlacklistedAIProxy proxy server and open the Web UI"; Components: shortcuts
-Name: "{group}\{#AppName} — Report a Bug";   Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\bug-reporter.ps1"""; IconFilename: "{app}\assets\SetupIcon.ico"; Comment: "Report a bug directly to the GitHub issue tracker"; Components: bugreport
+Name: "{group}\{#AppName} — Open Web UI";    Filename: "{app}\runtime\node.exe"; Parameters: """{app}\src\core\master.js"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\setupicon.ico"; Comment: "Launch the BlacklistedAIProxy proxy server and open the Web UI"; Components: shortcuts
+Name: "{group}\{#AppName} — Report a Bug";   Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\bug-reporter.ps1"""; IconFilename: "{app}\assets\setupicon.ico"; Comment: "Report a bug directly to the GitHub issue tracker"; Components: bugreport
 Name: "{group}\{#AppName} — Uninstall";      Filename: "{uninstallexe}"; Components: shortcuts
 Name: "{group}\README & Documentation";      Filename: "{app}\README.md"; Components: shortcuts
-Name: "{commondesktop}\{#AppName}";          Filename: "{app}\runtime\node.exe"; Parameters: """{app}\src\core\master.js"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\SetupIcon.ico"; Tasks: desktopicon; Components: shortcuts
+Name: "{commondesktop}\{#AppName}";          Filename: "{app}\runtime\node.exe"; Parameters: """{app}\src\core\master.js"""; WorkingDir: "{app}"; IconFilename: "{app}\assets\setupicon.ico"; Tasks: desktopicon; Components: shortcuts
 
 ; Portable install
-Name: "{group}\{#AppName} Portable — Launch"; Filename: "{app}\Launch BlacklistedAIProxy.bat"; WorkingDir: "{app}"; IconFilename: "{app}\assets\SetupIcon.ico"; Components: app; Check: IsPortableInstall
-Name: "{group}\{#AppName} — Report a Bug";    Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\bug-reporter.ps1"""; IconFilename: "{app}\assets\SetupIcon.ico"; Components: bugreport; Check: IsPortableInstall
+Name: "{group}\{#AppName} Portable — Launch"; Filename: "{app}\Launch BlacklistedAIProxy.bat"; WorkingDir: "{app}"; IconFilename: "{app}\assets\setupicon.ico"; Components: app; Check: IsPortableInstall
+Name: "{group}\{#AppName} — Report a Bug";    Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\bug-reporter.ps1"""; IconFilename: "{app}\assets\setupicon.ico"; Components: bugreport; Check: IsPortableInstall
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a Desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
