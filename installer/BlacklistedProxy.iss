@@ -274,8 +274,8 @@ begin
   begin
     Drive := Letter + ':\';
 
-    { DRIVE_REMOVABLE = 2 }
-    if GetDriveType(Drive) = DRIVE_REMOVABLE then
+    { 2 = DRIVE_REMOVABLE }
+    if GetDriveType(Drive) = 2 then
     begin
       Result := Drive + 'BlacklistedAIProxy';
       Exit;
@@ -290,16 +290,25 @@ end;
 function GetInstalledNodeVersion: String;
 var
   ResultCode: Integer;
-  TempFile:   String;
-  Lines:      TArrayOfString;
+  TempFile: String;
+  VersionText: AnsiString;
 begin
   Result := '';
   TempFile := ExpandConstant('{tmp}\node_ver.txt');
-  if Exec('cmd.exe', '/c node --version > "' + TempFile + '" 2>&1',
-          '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin
-    if LoadStringsFromFile(TempFile, Lines) and (GetArrayLength(Lines) > 0) then
-      Result := Trim(Lines[0]);
+
+  if Exec(
+       'cmd.exe',
+       '/c node --version > "' + TempFile + '" 2>&1',
+       '',
+       SW_HIDE,
+       ewWaitUntilTerminated,
+       ResultCode
+     ) then
+  begin
+    if LoadStringFromFile(TempFile, VersionText) then
+      Result := Trim(VersionText);
   end;
+
   DeleteFile(TempFile);
 end;
 
