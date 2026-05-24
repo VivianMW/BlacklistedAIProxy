@@ -155,21 +155,34 @@ jobs:
     - name: Patch .iss credits line
       shell: pwsh
       run: |
-        # {#AppVersion} inside a line containing Unicode box-drawing characters
-        # causes ISPP to miscount bytes and report "Unknown preprocessor directive"
-        # Fix: split the ISPP token away from the Unicode characters
+        # {#AppVersion} inside a line with Unicode box-drawing characters
+        # causes ISPP byte-counter confusion → "Unknown preprocessor directive"
+        # Strategy: read all lines, find the offending line by pattern, replace it
         $issPath = "installer\BlacklistedProxy.iss"
-        $content = Get-Content $issPath -Raw -Encoding UTF8
+        $lines = [System.IO.File]::ReadAllLines($issPath, [System.Text.Encoding]::UTF8)
 
-        $old = "CreditsViewer.Lines.Add('  ██   BlacklistedAIProxy v{#AppVersion}            ██');"
-        $new = "CreditsViewer.Lines.Add('  ██   BlacklistedAIProxy v' + '{#AppVersion}' + '            ██');"
+        Write-Host "Total lines in .iss: $($lines.Length)"
 
-        if ($content -match [regex]::Escape($old)) {
-          $content = $content.Replace($old, $new)
-          Set-Content $issPath $content -Encoding UTF8
-          Write-Host "Patched credits line successfully"
+        $patched = $false
+        for ($i = 0; $i -lt $lines.Length; $i++) {
+          if ($lines[$i] -match "BlacklistedAIProxy v\{#AppVersion\}") {
+            Write-Host "Found target on line $($i+1): $($lines[$i])"
+            # Replace {#AppVersion} with a concatenated form ISPP handles cleanly
+            $lines[$i] = $lines[$i] -replace "\{#AppVersion\}", "' + '{#AppVersion}' + '"
+            Write-Host "Patched to: $($lines[$i])"
+            $patched = $true
+          }
+        }
+
+        if ($patched) {
+          [System.IO.File]::WriteAllLines($issPath, $lines, [System.Text.Encoding]::UTF8)
+          Write-Host "File saved successfully"
         } else {
-          Write-Host "Line already patched or not found — skipping"
+          # Dump lines 300-310 so we can see what is actually there
+          Write-Host "WARNING: target line not found. Dumping lines 300-310:"
+          for ($i = 299; $i -lt [Math]::Min(310, $lines.Length); $i++) {
+            Write-Host ("{0,4}: {1}" -f ($i+1), $lines[$i])
+          }
         }
 
     # ─────────────────────────────────────────────
