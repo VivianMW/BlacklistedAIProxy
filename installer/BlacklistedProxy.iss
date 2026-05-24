@@ -399,7 +399,7 @@ begin
   CreditsViewer.Lines.Add('');
   CreditsViewer.Lines.Add('  ████████████████████████████████████████████████████');
   CreditsViewer.Lines.Add('  ██                                                ██');
-  CreditsViewer.Lines.Add('  ██   BlacklistedAIProxy v{#AppVersion}            ██');
+  CreditsViewer.Lines.Add('  ██   BlacklistedAIProxy v' + '{#AppVersion}' + '            ██');
   CreditsViewer.Lines.Add('  ██   by Blacklisted Binary Labs                   ██');
   CreditsViewer.Lines.Add('  ██   blacklistedbinary.com                        ██');
   CreditsViewer.Lines.Add('  ██   github.com/BlacklistedBinaryLabs            ██');
