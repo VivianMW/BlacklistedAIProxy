@@ -132,22 +132,31 @@ jobs:
           Write-Host "✓ Portable Node.js staged to $nodeDir"
 
       # ──────────────────────────────────────────────
-      # 9. Install Inno Setup
+      # 9. Install Inno Setup (with ISPP preprocessor)
       # ──────────────────────────────────────────────
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          # Chocolatey is pre-installed on all GitHub Actions Windows runners
-          choco install innosetup --yes --no-progress | Out-Null
+          # Download directly from the official GitHub release — guarantees
+          # ISPP (preprocessor) is included, which the .iss file requires
+          # for #define / #ifndef / {#AppVersion} directives.
+          $release = "https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe"
+          $installer = "$env:TEMP\innosetup.exe"
 
-          # Persist the default install path for subsequent steps
+          Write-Host "Downloading Inno Setup 6.4.3..."
+          Invoke-WebRequest -Uri $release -OutFile $installer -UseBasicParsing -TimeoutSec 120
+
+          Write-Host "Installing Inno Setup (with ISPP)..."
+          # /COMPONENTS=* installs everything including the preprocessor (ISPP)
+          Start-Process $installer -ArgumentList "/SILENT /SUPPRESSMSGBOXES /SP- /COMPONENTS=*" -Wait
+
+          # Persist install path for subsequent steps
           echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
-
-          # Verify
           $env:PATH += ";C:\Program Files (x86)\Inno Setup 6"
+
           $iscc = Get-Command iscc -ErrorAction SilentlyContinue
           if (-not $iscc) {
-            Write-Error "Inno Setup (iscc.exe) not found after choco install"
+            Write-Error "Inno Setup (iscc.exe) not found after installation"
             exit 1
           }
           Write-Host "✓ Inno Setup ready: $($iscc.Source)"
