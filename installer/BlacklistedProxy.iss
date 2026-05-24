@@ -16,21 +16,24 @@
 ;   - node_modules (production only) present in the repo root
 ; ==============================================================================
 
-#define AppName        "BlacklistedAIProxy"
-#define AppPublisher   "Blacklisted Binary Labs"
-#define AppURL         "https://blacklistedbinary.com"
-#define AppGitHub      "https://github.com/crazyrob425/BlacklistedAIProxy"
-#ifndef AppVersion
-  #define AppVersion     "2.13.7-beta.1"
+#define AppName "BlacklistedAIProxy"
+#define AppPublisher "Blacklisted Binary Labs"
+#define AppURL "https://blacklistedbinary.com"
+#define AppGitHub "https://github.com/crazyrob425/BlacklistedAIProxy"
+
+#ifnexist "AppVersion"
+  #define AppVersion "2.13.7-beta.1"
 #endif
-#ifndef AppVersionNumeric
+
+#ifnexist "AppVersionNumeric"
   #define AppVersionNumeric "2.13.7.1"
 #endif
-#define AppExeName     "launcher.bat"
-#define ServiceName    "BlacklistedAIProxy"
-#define WatchdogName   "BlacklistedAIProxyWatchdog"
-#define PortableZip    "BlacklistedAIProxy-portable.zip"
-#define AppId          "{{8F3A1C2D-9E4B-4F7A-B6C8-3D1E5F9A0B2C}"
+
+#define AppExeName "launcher.bat"
+#define ServiceName "BlacklistedAIProxy"
+#define WatchdogName "BlacklistedAIProxyWatchdog"
+#define PortableZip "BlacklistedAIProxy-portable.zip"
+#define AppId "{{8F3A1C2D-9E4B-4F7A-B6C8-3D1E5F9A0B2C}"
 
 [Setup]
 AppId={#AppId}
@@ -49,7 +52,7 @@ VersionInfoDescription={#AppName} Installer
 VersionInfoCopyright=Copyright (C) 2026 Blacklisted Binary Labs
 
 ; Legal agreement — displayed on the License wizard page
-LicenseFile=legal\FullLegalTerms.rtf
+installer\legal\FullLegalTerms.rtf
 
 ; Default to Program Files\BlacklistedAIProxy
 DefaultDirName={autopf}\{#AppName}
@@ -243,7 +246,7 @@ var
   InstallTypePage:      TInputOptionWizardPage;  // Full vs Portable selection
   CreditsPage:          TWizardPage;             // Credits & acknowledgements
   CreditsViewer:        TMemo;
-  PortableDefaultDir:   String;
+  PortableDefaultDir: String;
   InstallTypeChosen:    Integer;                 // -1=None selected yet, 0=Full, 1=Portable
   LicenseScrolled:      Boolean;                 // true once user scrolls to bottom
 
@@ -262,20 +265,25 @@ end;
 // ── Detect USB drives for portable default directory ─────────────────────────
 function FindFirstRemovableDrive: String;
 var
-  Drive:  String;
+  Drive: String;
   Letter: Char;
 begin
   Result := '';
-  for Letter := 'D' to 'Z' do begin
+
+  for Letter := 'D' to 'Z' do
+  begin
     Drive := Letter + ':\';
-    // DriveType 2 = DRIVE_REMOVABLE (USB)
-    if GetDriveType(Drive) = 2 then begin
+
+    { DRIVE_REMOVABLE = 2 }
+    if GetDriveType(Drive) = DRIVE_REMOVABLE then
+    begin
       Result := Drive + 'BlacklistedAIProxy';
       Exit;
     end;
   end;
+
   if Result = '' then
-    Result := 'D:\BlacklistedAIProxy';  // fallback
+    Result := 'D:\BlacklistedAIProxy';
 end;
 
 // ── Node.js version check ─────────────────────────────────────────────────────
@@ -395,8 +403,8 @@ begin
   CreditsViewer.ScrollBars := ssVertical;
   CreditsViewer.Font.Name  := 'Courier New';
   CreditsViewer.Font.Size  := 9;
-  CreditsViewer.Color      := $1A1A1A;
-  CreditsViewer.Font.Color := $00FF99;
+  CreditsViewer.Color := clBlack;
+  CreditsViewer.Font.Color := clLime;
 
   CreditsViewer.Lines.Add('');
   CreditsViewer.Lines.Add('  ████████████████████████████████████████████████████');
@@ -543,8 +551,9 @@ begin
 
   // On install-type page: capture selection and update default dir
   if CurPageID = InstallTypePage.ID then begin
-    if (not InstallTypePage.Values[0]) and (not InstallTypePage.Values[1]) then begin
-MsgBox(
+    if (not InstallTypePage.Values[0]) and (not InstallTypePage.Values[1]) then
+begin
+  MsgBox(
   'Please choose an installation mode:' +
   #13#10 +
   'Full Install (service auto-start at boot, no login required) or Portable Mode (no service).',
@@ -563,7 +572,7 @@ MsgBox(
       WizardForm.DirEdit.Text := PortableDefaultDir;
     end else begin
       // Full: default to Program Files
-      WizardForm.DirEdit.Text := ExpandConstant('{autopf}\BlacklistedAIProxy');
+      WizardForm.DirEdit.Text := ExpandConstant('{autopf}\{#AppName}');
     end;
   end;
 
