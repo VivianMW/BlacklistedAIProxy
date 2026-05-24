@@ -128,47 +128,39 @@ jobs:
     - name: Install Inno Setup
       shell: pwsh
       run: |
-        # winget is pre-installed on windows-2025 runners
         winget install --id JRSoftware.InnoSetup `
           --silent `
           --accept-package-agreements `
           --accept-source-agreements
 
-        # Add to PATH for subsequent steps
         "C:\Program Files (x86)\Inno Setup 6" | `
           Out-File -FilePath $env:GITHUB_PATH -Append
         $env:PATH += ";C:\Program Files (x86)\Inno Setup 6"
 
-        # Verify iscc is available
         $iscc = Get-Command iscc -ErrorAction SilentlyContinue
         if (-not $iscc) { throw "Inno Setup (iscc.exe) not found" }
 
-        # Verify ISPP.dll — required for #define/#ifndef in .iss file
         if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISPP.dll")) {
           throw "ISPP.dll missing — preprocessor not installed"
         }
         Write-Host "Inno Setup ready: $($iscc.Source)"
 
     # ─────────────────────────────────────────────
-    # 9. FIX .ISS FILE (ISPP + UNICODE ISSUE)
+    # 9. FIX .ISS FILE (ISPP + UNICODE + PASCAL BUG)
     # ─────────────────────────────────────────────
     - name: Patch .iss credits line
       shell: pwsh
       run: |
-        # {#AppVersion} inside a line with Unicode box-drawing characters
-        # causes ISPP byte-counter confusion → "Unknown preprocessor directive"
-        # Strategy: read all lines, find the offending line by pattern, replace it
+        $ver = "${{ steps.version.outputs.FULL }}"
         $issPath = "installer\BlacklistedProxy.iss"
         $lines = [System.IO.File]::ReadAllLines($issPath, [System.Text.Encoding]::UTF8)
-
-        Write-Host "Total lines in .iss: $($lines.Length)"
 
         $patched = $false
         for ($i = 0; $i -lt $lines.Length; $i++) {
           if ($lines[$i] -match "BlacklistedAIProxy v\{#AppVersion\}") {
             Write-Host "Found target on line $($i+1): $($lines[$i])"
-            # Replace {#AppVersion} with a concatenated form ISPP handles cleanly
-            $lines[$i] = $lines[$i] -replace "\{#AppVersion\}", "' + '{#AppVersion}' + '"
+            # Hard-inject the version string directly to avoid Pascal Script WideString concatenation mismatch
+            $lines[$i] = $lines[$i] -replace "\{#AppVersion\}", $ver
             Write-Host "Patched to: $($lines[$i])"
             $patched = $true
           }
@@ -178,11 +170,7 @@ jobs:
           [System.IO.File]::WriteAllLines($issPath, $lines, [System.Text.Encoding]::UTF8)
           Write-Host "File saved successfully"
         } else {
-          # Dump lines 300-310 so we can see what is actually there
-          Write-Host "WARNING: target line not found. Dumping lines 300-310:"
-          for ($i = 299; $i -lt [Math]::Min(310, $lines.Length); $i++) {
-            Write-Host ("{0,4}: {1}" -f ($i+1), $lines[$i])
-          }
+          Write-Host "WARNING: target line not found."
         }
 
     # ─────────────────────────────────────────────
@@ -193,7 +181,6 @@ jobs:
       run: |
         New-Item -ItemType Directory -Force build | Out-Null
         
-        # Build array of existing paths to zip to prevent errors if a file/folder is missing
         $pathsToZip = @()
         $possiblePaths = @("src", "configs", "static", "node_modules", "package.json", "package-lock.json", "VERSION", "LICENSE", "README.md", "docs", "tls-sidecar\tls-sidecar.exe")
         
@@ -247,7 +234,6 @@ jobs:
         Start-Process $env:INSTALLER `
           -ArgumentList "/SILENT /DIR=`"$dir`"" `
           -Wait
-        # Check for core source file (no compiled exe in this app)
         $check = Join-Path $dir "src\core\master.js"
         if (-not (Test-Path $check)) {
           throw "Smoke test failed: $check not found"
