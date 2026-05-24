@@ -14,22 +14,23 @@ permissions:
 env:
   NODE_VERSION: 20.17.0
   GO_VERSION: 1.22.0
-  NSSM_VERSION: 2.24
 
 jobs:
   build:
     runs-on: windows-2025
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
 
     # ─────────────────────────────────────────────
-    # 1. SOURCE CHECKOUT (PINNED STATE)
+    # 1. SOURCE CHECKOUT
     # ─────────────────────────────────────────────
     - name: Checkout source
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
 
     # ─────────────────────────────────────────────
-    # 2. VERSION RESOLUTION (IMMUTABLE OUTPUT)
+    # 2. VERSION RESOLUTION
     # ─────────────────────────────────────────────
     - name: Resolve version
       id: version
@@ -37,28 +38,26 @@ jobs:
       run: |
         $base = (Get-Content VERSION -Raw).Trim()
         $full = "$base-beta.1"
-
         "BASE=$base" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "FULL=$full" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
         Write-Host "Version locked: $full"
 
     # ─────────────────────────────────────────────
-    # 3. TOOLCHAIN BOOTSTRAP (NO SYSTEM DEPENDENCY)
+    # 3. TOOLCHAIN BOOTSTRAP
     # ─────────────────────────────────────────────
     - name: Setup Go (pinned)
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v5.3.0
       with:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Setup Node (pinned)
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v4.3.0
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: npm
 
     # ─────────────────────────────────────────────
-    # 4. INSTALL JS DEPENDENCIES (DETERMINISTIC)
+    # 4. JS DEPENDENCIES
     # ─────────────────────────────────────────────
     - name: Install dependencies
       shell: pwsh
@@ -67,7 +66,7 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit 1 }
 
     # ─────────────────────────────────────────────
-    # 5. BUILD GO COMPONENT (ISOLATED)
+    # 5. BUILD GO SIDECAR
     # ─────────────────────────────────────────────
     - name: Build Go sidecar
       shell: pwsh
@@ -79,7 +78,6 @@ jobs:
       run: |
         go mod download
         go build -trimpath -ldflags "-s -w" -o tls-sidecar.exe .
-
         if (-not (Test-Path tls-sidecar.exe)) {
           throw "Go build failed: tls-sidecar.exe missing"
         }
@@ -91,44 +89,96 @@ jobs:
         Copy-Item tls-sidecar\tls-sidecar.exe build\bin\tls-sidecar.exe -Force
 
     # ─────────────────────────────────────────────
-    # 6. TOOLING LAYER (ISOLATED ARTIFACTS)
+    # 6. STAGE NSSM
     # ─────────────────────────────────────────────
-
-    - name: Install NSSM (deterministic via choco)
+    - name: Install and stage NSSM
       shell: pwsh
       run: |
         choco install nssm --yes --no-progress
-
         $nssm = (Get-Command nssm -ErrorAction Stop).Source
-
         New-Item -ItemType Directory -Force build\nssm | Out-Null
         Copy-Item $nssm build\nssm\nssm.exe -Force
-
         if (-not (Test-Path build\nssm\nssm.exe)) {
           throw "NSSM staging failed"
         }
+        Write-Host "NSSM staged from: $nssm"
 
-    - name: Install Inno Setup (stable + verified)
+    # ─────────────────────────────────────────────
+    # 7. STAGE PORTABLE NODE RUNTIME
+    # ─────────────────────────────────────────────
+    - name: Download portable Node.js runtime
       shell: pwsh
       run: |
-        winget install --id JRSoftware.InnoSetup --silent --accept-package-agreements --accept-source-agreements
+        $nodeDir = "build\node"
+        New-Item -ItemType Directory -Force $nodeDir | Out-Null
+        $zipPath = "$env:TEMP\node.zip"
+        Invoke-WebRequest `
+          -Uri "https://nodejs.org/dist/v${{ env.NODE_VERSION }}/node-v${{ env.NODE_VERSION }}-win-x64.zip" `
+          -OutFile $zipPath `
+          -UseBasicParsing `
+          -TimeoutSec 120
+        Expand-Archive $zipPath -DestinationPath "$env:TEMP\node-extract" -Force
+        Copy-Item "$env:TEMP\node-extract\node-v${{ env.NODE_VERSION }}-win-x64\*" `
+                  $nodeDir -Recurse -Force
+        Write-Host "Node.js runtime staged to $nodeDir"
 
+    # ─────────────────────────────────────────────
+    # 8. INSTALL INNO SETUP (WITH ISPP)
+    # ─────────────────────────────────────────────
+    - name: Install Inno Setup
+      shell: pwsh
+      run: |
+        # winget is pre-installed on windows-2025 runners
+        winget install --id JRSoftware.InnoSetup `
+          --silent `
+          --accept-package-agreements `
+          --accept-source-agreements
+
+        # Add to PATH for subsequent steps
+        "C:\Program Files (x86)\Inno Setup 6" | `
+          Out-File -FilePath $env:GITHUB_PATH -Append
+        $env:PATH += ";C:\Program Files (x86)\Inno Setup 6"
+
+        # Verify iscc is available
         $iscc = Get-Command iscc -ErrorAction SilentlyContinue
-        if (-not $iscc) {
-          throw "Inno Setup not available"
-        }
+        if (-not $iscc) { throw "Inno Setup (iscc.exe) not found" }
 
+        # Verify ISPP.dll — required for #define/#ifndef in .iss file
         if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISPP.dll")) {
-          throw "Inno Setup preprocessor missing"
+          throw "ISPP.dll missing — preprocessor not installed"
+        }
+        Write-Host "Inno Setup ready: $($iscc.Source)"
+
+    # ─────────────────────────────────────────────
+    # 9. FIX .ISS FILE (ISPP + UNICODE ISSUE)
+    # ─────────────────────────────────────────────
+    - name: Patch .iss credits line
+      shell: pwsh
+      run: |
+        # {#AppVersion} inside a line containing Unicode box-drawing characters
+        # causes ISPP to miscount bytes and report "Unknown preprocessor directive"
+        # Fix: split the ISPP token away from the Unicode characters
+        $issPath = "installer\BlacklistedProxy.iss"
+        $content = Get-Content $issPath -Raw -Encoding UTF8
+
+        $old = "CreditsViewer.Lines.Add('  ██   BlacklistedAIProxy v{#AppVersion}            ██');"
+        $new = "CreditsViewer.Lines.Add('  ██   BlacklistedAIProxy v' + '{#AppVersion}' + '            ██');"
+
+        if ($content -match [regex]::Escape($old)) {
+          $content = $content.Replace($old, $new)
+          Set-Content $issPath $content -Encoding UTF8
+          Write-Host "Patched credits line successfully"
+        } else {
+          Write-Host "Line already patched or not found — skipping"
         }
 
     # ─────────────────────────────────────────────
-    # 7. BUILD (NO SIDE EFFECTS)
+    # 10. COMPILE INSTALLER
     # ─────────────────────────────────────────────
     - name: Build installer
       shell: pwsh
       run: |
-        $ver = "${{ steps.version.outputs.FULL }}"
+        $ver    = "${{ steps.version.outputs.FULL }}"
         $verNum = "${{ steps.version.outputs.BASE }}.1"
 
         New-Item -ItemType Directory -Force Output | Out-Null
@@ -138,54 +188,46 @@ jobs:
           /D"AppVersionNumeric=$verNum" `
           installer\BlacklistedProxy.iss
 
-        if ($LASTEXITCODE -ne 0) {
-          throw "Inno Setup compilation failed"
-        }
+        if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
 
         $installer = "Output\BlacklistedAIProxy-Setup-$ver-win-x64.exe"
+        if (-not (Test-Path $installer)) { throw "Installer artifact missing" }
 
-        if (-not (Test-Path $installer)) {
-          throw "Installer artifact missing"
-        }
-
-        $size = (Get-Item $installer).Length / 1MB
-        Write-Host "Installer OK: $([math]::Round($size,2)) MB"
+        $size = [math]::Round((Get-Item $installer).Length / 1MB, 2)
+        Write-Host "Installer OK: $size MB — $installer"
 
         "INSTALLER=$installer" | Out-File -FilePath $env:GITHUB_ENV -Append
 
     # ─────────────────────────────────────────────
-    # 8. VERIFICATION (STRICT ARTIFACT VALIDATION)
+    # 11. SMOKE TEST
     # ─────────────────────────────────────────────
     - name: Smoke test
       shell: pwsh
       run: |
         $dir = "$env:TEMP\BPA-test"
-
         Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
-
         Start-Process $env:INSTALLER `
           -ArgumentList "/SILENT /DIR=`"$dir`"" `
           -Wait
-
-        $exe = Join-Path $dir "BlacklistedAIProxy.exe"
-
-        if (-not (Test-Path $exe)) {
-          throw "Smoke test failed: runtime artifact missing"
+        # Check for core source file (no compiled exe in this app)
+        $check = Join-Path $dir "src\core\master.js"
+        if (-not (Test-Path $check)) {
+          throw "Smoke test failed: $check not found"
         }
-
         Write-Host "Smoke test passed"
 
     # ─────────────────────────────────────────────
-    # 9. ARTIFACT OUTPUT (SEPARATE FROM RELEASE)
+    # 12. UPLOAD ARTIFACT
     # ─────────────────────────────────────────────
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: BlacklistedAIProxy-${{ steps.version.outputs.FULL }}
         path: ${{ env.INSTALLER }}
+        retention-days: 30
 
     # ─────────────────────────────────────────────
-    # 10. RELEASE (ONLY ON TAGS)
+    # 13. RELEASE (TAG PUSHES ONLY)
     # ─────────────────────────────────────────────
     - name: Release
       if: startsWith(github.ref, 'refs/tags/v')
