@@ -66,8 +66,8 @@ OutputDir=Output
 OutputBaseFilename=BlacklistedAIProxy-Setup-{#AppVersion}-win-x64
 setupiconFile=assets\setupicon.ico
 UninstallDisplayIcon={app}\assets\setupicon.ico
-; WizardImageFile=assets\WizardImage.bmp
-; WizardSmallImageFile=assets\WizardSmallImage.bmp
+; WizardImageFile=assets\wizardimage.bmp
+; WizardSmallImageFile=assets\wizardsmallimage.bmp
 WizardStyle=modern
 WizardSizePercent=120
 
