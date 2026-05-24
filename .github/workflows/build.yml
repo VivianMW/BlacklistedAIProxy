@@ -137,19 +137,10 @@ jobs:
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          # Download directly from the official GitHub release — guarantees
-          # ISPP (preprocessor) is included, which the .iss file requires
-          # for #define / #ifndef / {#AppVersion} directives.
-          $release = "https://files.jrsoftware.org/is/6/innosetup-6.7.1.exe"
-          $installer = "$env:TEMP\innosetup.exe"
-
-          Write-Host "Downloading Inno Setup 6.4.3..."
-          Invoke-WebRequest -Uri $release -OutFile $installer -UseBasicParsing -TimeoutSec 120
-
-          Write-Host "Installing Inno Setup 6.7.1 (with ISPP)..."
-          # Note: Inno Setup's own installer uses /TYPE=full to include ISPP
-          # /TYPE=full ensures ISPP preprocessor is included
-          Start-Process $installer -ArgumentList "/SILENT /SUPPRESSMSGBOXES /SP- /TYPE=full" -Wait
+          # Use winget — pre-installed on windows-2025 runners, always pulls
+          # the correct version with ISPP included, no fragile download URLs.
+          Write-Host "Installing Inno Setup via winget..."
+          winget install --id JRSoftware.InnoSetup --silent --accept-package-agreements --accept-source-agreements
 
           # Persist install path for subsequent steps
           echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
@@ -157,7 +148,7 @@ jobs:
 
           $iscc = Get-Command iscc -ErrorAction SilentlyContinue
           if (-not $iscc) {
-            Write-Error "Inno Setup (iscc.exe) not found after installation"
+            Write-Error "Inno Setup (iscc.exe) not found after winget install"
             exit 1
           }
           # Verify ISPP.dll is present — required for #define/#ifndef in .iss files
