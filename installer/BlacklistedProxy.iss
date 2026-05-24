@@ -310,15 +310,11 @@ begin
     wpLicense,
     'Legal Agreement Confirmation',
     'Confirm required legal documents before installation',
-    'To continue, you must review and agree to every required legal document:' +
-    #13#10#13#10 +
-    '  • Terms of Service (TOS)' +
-    #13#10 +
-    '  • Hold Harmless & Limitation of Liability' +
-    #13#10 +
-    '  • Full legal terms shown on the previous page' +
-    #13#10#13#10 +
-    'The documents are installed to {app}\docs\legal for future reference.',
+'To continue, you must review and agree to every required legal document:' + #13#10#13#10 +
+'  • Terms of Service (TOS)' + #13#10 +
+'  • Hold Harmless & Limitation of Liability' + #13#10 +
+'  • Full legal terms shown on the previous page' + #13#10#13#10 +
+'The documents are installed to {app}\docs\legal for future reference.',
     False,
     False
   );
@@ -554,8 +550,7 @@ begin
     if (not InstallTypePage.Values[0]) and (not InstallTypePage.Values[1]) then
 begin
   MsgBox(
-  'Please choose an installation mode:' +
-  #13#10 +
+  'Please choose an installation mode:' +#13#10 +
   'Full Install (service auto-start at boot, no login required) or Portable Mode (no service).',
         mbError, MB_OK
       );
@@ -581,10 +576,8 @@ begin
     NodeVer := GetInstalledNodeVersion;
     if NodeVer = '' then begin
 if MsgBox(
-          'Node.js was not found in the system PATH.' +
-          #13#10 +
-          'The bundled runtime in the installer will be used.' +
-          #13#10#13#10 +
+          'Node.js was not found in the system PATH.' +#13#10 +
+          'The bundled runtime in the installer will be used.' +#13#10#13#10 +
           'Do you want to continue?',
                 mbConfirmation, MB_YESNO) = IDNO then begin
         Result := False;
@@ -628,10 +621,8 @@ begin
   Result := True;
   if IsComponentSelected('service') then begin
 if MsgBox(
-          'This will stop and remove the BlacklistedAIProxy Windows service.' +
-          #13#10 +
-          'Any active proxy connections will be terminated.' +
-          #13#10#13#10 +
+          'This will stop and remove the BlacklistedAIProxy Windows service.' +#13#10 +
+          'Any active proxy connections will be terminated.' +#13#10#13#10 +
           'Do you want to continue with the uninstall?',
               mbConfirmation, MB_YESNO) = IDNO then begin
       Result := False;
