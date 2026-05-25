@@ -265,24 +265,23 @@ end;
 // ── Detect USB drives for portable default directory ─────────────────────────
 function FindFirstRemovableDrive: String;
 var
-  Drive: String;
   I: Integer;
+  Drive: String;
 begin
   Result := '';
 
   for I := Ord('D') to Ord('Z') do
   begin
-    Drive := Format('%s:\', [Chr(I)]);
+    Drive := Chr(I) + ':\';
 
-    if GetDriveType(Drive) = 2 then
+    if DirExists(Drive) then
     begin
       Result := Drive + 'BlacklistedAIProxy';
       Exit;
     end;
   end;
 
-  if Result = '' then
-    Result := 'D:\BlacklistedAIProxy';
+  Result := ExpandConstant('{autopf}\BlacklistedAIProxy');
 end;
 
 // ── Node.js version check ─────────────────────────────────────────────────────
