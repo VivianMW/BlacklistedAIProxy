@@ -75,11 +75,11 @@ WizardSizePercent=120
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
 
-; Compression
+; Compression Settings (optimized for debugging speed, lower RAM, and thread stability)
 Compression=lzma2
 SolidCompression=no
 LZMAUseSeparateProcess=yes
-LZMANumBlockThreads=4
+LZMANumBlockThreads=2
 
 ; Installer UI settings
 ShowLanguageDialog=no
@@ -117,7 +117,6 @@ Name: "bugreport";  Description: "Bug Reporter shortcut";         Types: full po
 Source: "..\src\*";                    DestDir: "{app}\src";        Flags: recursesubdirs createallsubdirs; Components: app
 Source: "..\configs\*";                DestDir: "{app}\configs";    Flags: recursesubdirs createallsubdirs; Components: app
 Source: "..\static\*";                 DestDir: "{app}\static";     Flags: recursesubdirs createallsubdirs; Components: app
-Source: "..\node_modules\*";           DestDir: "{app}\node_modules"; Flags: recursesubdirs createallsubdirs; Components: app
 Source: "..\package.json";             DestDir: "{app}";            Components: app
 Source: "..\package-lock.json";        DestDir: "{app}";            Components: app
 Source: "..\VERSION";                  DestDir: "{app}";            Components: app
@@ -142,11 +141,14 @@ Source: "scripts\bug-reporter.ps1";    DestDir: "{app}";            Components: 
 ; ── NSSM service manager (x64) ───────────────────────────────────────────────
 Source: "..\build\nssm\nssm.exe";      DestDir: "{app}\tools";      Components: service
 
-; ── Bundled Node.js runtime ──────────────────────────────────────────────────
-Source: "..\build\node\*";             DestDir: "{app}\runtime";    Flags: recursesubdirs createallsubdirs; Components: app
+; ── Optimized node_modules packaging (discards unused development/test files) ───
+Source: "..\node_modules\*";           DestDir: "{app}\node_modules"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "*.md,*.markdown,*.map,*.ts,*.coffee,*.log,*.cmd,test\*,tests\*,__tests__\*,example\*,examples\*,docs\*,coverage\*,.github\*,*.yml,*.yaml"; Components: app
 
-; ── Portable bundle (for portable mode) ─────────────────────────────────────
-Source: "..\build\{#PortableZip}";     DestDir: "{app}";            Components: app; Check: IsPortableInstall
+; ── Optimized Node.js runtime packaging (excludes extraneous files from Node payload) ──
+Source: "..\build\node\*";             DestDir: "{app}\runtime";    Flags: recursesubdirs createallsubdirs; Excludes: "npm\*,npx\*,node_modules\*,docs\*,CHANGELOG*,LICENSE*,README*"; Components: app
+
+; ── Portable bundle (commented out temporarily to reduce compilation overhead during debugging) ──
+; Source: "..\build\{#PortableZip}";     DestDir: "{app}";            Components: app; Check: IsPortableInstall
 Source: "portable\launcher.ps1";       DestDir: "{app}";            Components: app; Check: IsPortableInstall
 Source: "portable\launcher.bat";       DestDir: "{app}";            DestName: "Launch BlacklistedAIProxy.bat"; Components: app; Check: IsPortableInstall
 
@@ -246,7 +248,7 @@ var
   InstallTypePage:      TInputOptionWizardPage;  // Full vs Portable selection
   CreditsPage:          TWizardPage;             // Credits & acknowledgements
   CreditsViewer:        TMemo;
-  PortableDefaultDir: String;
+  PortableDefaultDir:   String;
   InstallTypeChosen:    Integer;                 // -1=None selected yet, 0=Full, 1=Portable
   LicenseScrolled:      Boolean;                 // true once user scrolls to bottom
 
@@ -555,10 +557,10 @@ begin
   // On install-type page: capture selection and update default dir
   if CurPageID = InstallTypePage.ID then begin
     if (not InstallTypePage.Values[0]) and (not InstallTypePage.Values[1]) then
-begin
-  MsgBox(
-  'Please choose an installation mode:' +#13#10 +
-  'Full Install (service auto-start at boot, no login required) or Portable Mode (no service).',
+    begin
+      MsgBox(
+        'Please choose an installation mode:' +#13#10 +
+        'Full Install (service auto-start at boot, no login required) or Portable Mode (no service).',
         mbError, MB_OK
       );
       Result := False;
@@ -582,11 +584,11 @@ begin
   if (CurPageID = wpSelectDir) and IsFullInstall() then begin
     NodeVer := GetInstalledNodeVersion;
     if NodeVer = '' then begin
-if MsgBox(
+      if MsgBox(
           'Node.js was not found in the system PATH.' +#13#10 +
           'The bundled runtime in the installer will be used.' +#13#10#13#10 +
           'Do you want to continue?',
-                mbConfirmation, MB_YESNO) = IDNO then begin
+          mbConfirmation, MB_YESNO) = IDNO then begin
         Result := False;
       end;
     end else begin
@@ -627,11 +629,11 @@ function InitializeUninstall: Boolean;
 begin
   Result := True;
   if IsComponentSelected('service') then begin
-if MsgBox(
+    if MsgBox(
           'This will stop and remove the BlacklistedAIProxy Windows service.' +#13#10 +
           'Any active proxy connections will be terminated.' +#13#10#13#10 +
           'Do you want to continue with the uninstall?',
-              mbConfirmation, MB_YESNO) = IDNO then begin
+          mbConfirmation, MB_YESNO) = IDNO then begin
       Result := False;
     end;
   end;
