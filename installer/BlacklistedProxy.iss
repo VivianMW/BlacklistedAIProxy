@@ -76,8 +76,8 @@ PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
 
 ; Compression
-Compression=lzma2/ultra64
-SolidCompression=yes
+Compression=lzma2
+SolidCompression=no
 LZMAUseSeparateProcess=yes
 LZMANumBlockThreads=4
 
@@ -580,7 +580,7 @@ begin
   end;
 
   // On directory page (full install): warn if Node.js not found in PATH
-  if (CurPageID = wpSelectDir) and IsFullInstall then begin
+  if (CurPageID = wpSelectDir) and IsFullInstall() then begin
     NodeVer := GetInstalledNodeVersion;
     if NodeVer = '' then begin
 if MsgBox(
@@ -599,7 +599,7 @@ end;
 // ── UpdateDir: adjust default install dir based on install type ───────────────
 function UpdateDir(DirIn: String): String;
 begin
-  if IsPortableInstall then
+  if IsPortableInstall() then
     Result := PortableDefaultDir
   else
     Result := DirIn;
@@ -610,7 +610,7 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then begin
     // Post-install: log installation type
-    if IsPortableInstall then
+    if IsPortableInstall() then
       Log('Portable installation completed at: ' + WizardDirValue)
     else
       Log('Full service installation completed at: ' + WizardDirValue);
