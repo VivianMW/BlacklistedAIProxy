@@ -272,9 +272,8 @@ begin
 
   for Letter := 'D' to 'Z' do
   begin
-    Drive := Chr(Ord(Letter)) + ':\';
+    Drive := Format('%s:\', [Letter]);
 
-    { 2 = DRIVE_REMOVABLE }
     if GetDriveType(Drive) = 2 then
     begin
       Result := Drive + 'BlacklistedAIProxy';
