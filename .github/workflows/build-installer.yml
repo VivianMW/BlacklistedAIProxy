@@ -1,0 +1,48 @@
+name: Build and Package Installer
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # STEP 1: Fast, production-only dependency download
+      - name: Install Production Node Dependencies
+        run: |
+          npm ci --omit=dev
+
+      - name: Prepare Installer Assets
+        run: |
+          # Create output and build directories if they are needed by your pipeline
+          mkdir -p build/node
+          mkdir -p build/nssm
+          mkdir -p installer/Output
+          # (Your build actions to extract Node.js portable runtime & NSSM to build/ go here)
+
+      # STEP 2: Tail-logged Inno Setup compiler execution
+      - name: Compile Windows Installer with Inno Setup
+        shell: powershell
+        run: |
+          # Runs ISCC quietly, channels output to buildlog.txt, and displays only the error tail if failed
+          iscc installer\BlacklistedProxy.iss /Qp > buildlog.txt 2>&1
+          if ($LastExitCode -ne 0) {
+              Write-Error "Inno Setup compiler compilation encountered a builder failure!"
+              Get-Content buildlog.txt -Tail 200
+              exit $LastExitCode
+          } else {
+              Get-Content buildlog.txt -Tail 50
+          }
