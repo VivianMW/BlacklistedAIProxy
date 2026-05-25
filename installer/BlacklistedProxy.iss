@@ -272,7 +272,7 @@ begin
 
   for Letter := 'D' to 'Z' do
   begin
-    Drive := Letter + ':\';
+    Drive := Chr(Ord(Letter)) + ':\';
 
     { 2 = DRIVE_REMOVABLE }
     if GetDriveType(Drive) = 2 then
