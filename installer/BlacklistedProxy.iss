@@ -266,13 +266,13 @@ end;
 function FindFirstRemovableDrive: String;
 var
   Drive: String;
-  Letter: Char;
+  I: Integer;
 begin
   Result := '';
 
-  for Letter := 'D' to 'Z' do
+  for I := Ord('D') to Ord('Z') do
   begin
-    Drive := Format('%s:\', [Letter]);
+    Drive := Format('%s:\', [Chr(I)]);
 
     if GetDriveType(Drive) = 2 then
     begin
