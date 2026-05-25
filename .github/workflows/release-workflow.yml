@@ -1,0 +1,27 @@
+# ==============================================================================
+# GitHub Actions release pipeline configuration
+# Optimized for compile speed, error debugging, and log visibility
+# ==============================================================================
+name: Release Compilation
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. Prunes development packages, lowering file-copy and compression counts
+      - name: Install dependencies (Production Only)
+        run: npm ci --omit=dev
+
+      # 2. Redirects compiler tree logs to raw text file and forces tail logging to bypass truncation
+      - name: Compile Installer with Inno Setup
+        shell: powershell
+        run: |
+          iscc installer\BlacklistedProxy.iss /Qp > buildlog.txt 2>&1
+          Get-Content buildlog.txt -Tail 200
