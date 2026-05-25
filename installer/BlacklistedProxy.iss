@@ -66,8 +66,6 @@ OutputDir=Output
 OutputBaseFilename=BlacklistedAIProxy-Setup-{#AppVersion}-win-x64
 setupiconFile=assets\setupicon.ico
 UninstallDisplayIcon={app}\assets\setupicon.ico
-; WizardImageFile=assets\wizardimage.bmp
-; WizardSmallImageFile=assets\wizardsmallimage.bmp
 WizardStyle=modern
 WizardSizePercent=120
 
@@ -75,19 +73,13 @@ WizardSizePercent=120
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
 
-; Compression Settings (optimized for debugging speed, lower RAM, and thread stability)
+; ==============================================================================
+; OPTIMIZED COMPRESSION SECTOR (REDUCED FOR BUILD STABILITY during CI)
+; ==============================================================================
 Compression=lzma2
 SolidCompression=no
 LZMAUseSeparateProcess=yes
 LZMANumBlockThreads=2
-
-; Installer UI settings
-ShowLanguageDialog=no
-UsePreviousAppDir=yes
-UsePreviousGroup=yes
-UninstallDisplayName={#AppName} {#AppVersion}
-UninstallFilesDir={app}
-CreateUninstallRegKey=yes
 
 ; Minimum OS: Windows 10
 MinVersion=10.0
@@ -141,22 +133,28 @@ Source: "scripts\bug-reporter.ps1";    DestDir: "{app}";            Components: 
 ; ── NSSM service manager (x64) ───────────────────────────────────────────────
 Source: "..\build\nssm\nssm.exe";      DestDir: "{app}\tools";      Components: service
 
-; ── Optimized node_modules packaging (discards unused development/test files) ───
-Source: "..\node_modules\*";           DestDir: "{app}\node_modules"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "*.md,*.markdown,*.map,*.ts,*.coffee,*.log,*.cmd,test\*,tests\*,__tests__\*,example\*,examples\*,docs\*,coverage\*,.github\*,*.yml,*.yaml"; Components: app
-
-; ── Optimized Node.js runtime packaging (excludes extraneous files from Node payload) ──
-Source: "..\build\node\*";             DestDir: "{app}\runtime";    Flags: recursesubdirs createallsubdirs; Excludes: "npm\*,npx\*,node_modules\*,docs\*,CHANGELOG*,LICENSE*,README*"; Components: app
-
-; ── Portable bundle (commented out temporarily to reduce compilation overhead during debugging) ──
-; Source: "..\build\{#PortableZip}";     DestDir: "{app}";            Components: app; Check: IsPortableInstall
-Source: "portable\launcher.ps1";       DestDir: "{app}";            Components: app; Check: IsPortableInstall
-Source: "portable\launcher.bat";       DestDir: "{app}";            DestName: "Launch BlacklistedAIProxy.bat"; Components: app; Check: IsPortableInstall
+; ── TLS sidecar (pre-compiled) ───────────────────────────────────────────────
+Source: "..\tls-sidecar\tls-sidecar.exe"; DestDir: "{app}\tls-sidecar"; Flags: ignoreversion skipifsourcedoesntexist; Components: app
 
 ; ── Assets ───────────────────────────────────────────────────────────────────
 Source: "assets\setupicon.ico";        DestDir: "{app}\assets";     Flags: ignoreversion; Components: app
 
-; ── TLS sidecar (pre-compiled) ───────────────────────────────────────────────
-Source: "..\tls-sidecar\tls-sidecar.exe"; DestDir: "{app}\tls-sidecar"; Flags: ignoreversion skipifsourcedoesntexist; Components: app
+; ── Portable launcher files ──────────────────────────────────────────────────
+Source: "portable\launcher.ps1";       DestDir: "{app}";            Components: app; Check: IsPortableInstall
+Source: "portable\launcher.bat";       DestDir: "{app}";            DestName: "Launch BlacklistedAIProxy.bat"; Components: app; Check: IsPortableInstall
+
+; ==============================================================================
+; DYNAMIC FILTER OPTIMIZATIONS (ADDED TO ELIMINATE RECURSIVE DISK BLOWUP)
+; ==============================================================================
+
+; A. Deep node_modules exclusions (removes markdown, map files, tests, types, and git directories)
+Source: "..\node_modules\*"; DestDir: "{app}\node_modules"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "*.md,*.markdown,*.map,*.ts,*.coffee,*.log,*.cmd,test\*,tests\*,__tests__\*,example\*,examples\*,docs\*,coverage\*,.github\*,*.yml,*.yaml"; Components: app
+
+; B. Node runtime payload exclusion (removes npx, npm, documentation folders, and root changelogs)
+Source: "..\build\node\*"; DestDir: "{app}\runtime"; Excludes: "npm\*,npx\*,node_modules\*,docs\*,CHANGELOG*,LICENSE*,README*"; Flags: recursesubdirs createallsubdirs; Components: app
+
+; C. Commented out Portable ZIP (disabled dynamically during CI diagnostic phase to prevent duplicate work)
+; Source: "..\build\{#PortableZip}";     DestDir: "{app}";            Components: app; Check: IsPortableInstall
 
 ; ==============================================================================
 ; START MENU / DESKTOP SHORTCUTS
